@@ -1,0 +1,42 @@
+.careerRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.careerNode {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.crestBlock {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.clubCrest {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
+.clubName {
+  font-size: 12px;
+  opacity: 0.9;
+  max-width: 120px;
+}
+
+.careerArrow {
+  font-size: 18px;
+  opacity: 0.65;
+  margin-left: 6px;
+}
