@@ -55,6 +55,12 @@
   backdrop-filter: blur(10px);
 }
 
+.gameTitle {
+  font-size: 3.6em;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
 .game-content {
   width: 100%;
   display: flex;
