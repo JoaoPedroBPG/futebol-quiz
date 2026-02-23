@@ -1,25 +1,86 @@
 @import "tailwindcss";
 
 @layer base {
+  /*
+    Tokens (shadcn)
+    Esses valores são HSL (sem o "hsl()"), no formato: "H S% L%".
+    Isso permite classes do shadcn como bg-background, bg-primary, ring-ring, etc.
+  */
   :root {
+    /* shadcn tokens */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    /* verde do seu projeto */
+    --primary: 142 49% 37%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 142 49% 37%;
+
+    --radius: 0.75rem;
+
+    /* seu base */
     font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
     line-height: 1.5;
     font-weight: 400;
-
-    color-scheme: light dark;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+
+    /* se você usa prefer-color-scheme, ok, mas shadcn costuma usar classe .dark */
+    color-scheme: light dark;
   }
 
-  a {
-    font-weight: 500;
-    color: #646cff;
-    text-decoration: inherit;
-  }
-  a:hover {
-    color: #535bf2;
+  /* Tema escuro (use com <html class="dark"> ou mantendo o seu body escuro) */
+  .dark {
+    --background: 0 0% 14%;        /* ~ #242424 */
+    --foreground: 210 40% 98%;
+
+    --card: 0 0% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 142 49% 37%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 142 49% 37%;
   }
 
   html,
@@ -32,6 +93,8 @@
     min-width: 320px;
     min-height: 100vh;
     display: block;
+
+    /* Mantém seu visual escuro por padrão */
     background-color: #242424;
     color: rgba(255, 255, 255, 0.87);
   }
@@ -41,12 +104,26 @@
     min-height: 100vh;
   }
 
+  a {
+    font-weight: 500;
+    color: #2f8f5b;
+    text-decoration: inherit;
+  }
+  a:hover {
+    color: #2f8f5b;
+  }
+
   h1 {
     font-size: 3.2em;
     line-height: 1.1;
   }
 
-  button {
+  /*
+    IMPORTANTE:
+    Não aplique esses estilos em <button role="switch"> (Radix/shadcn Switch),
+    senão ele quebra.
+  */
+  button:not([role="switch"]) {
     border-radius: 8px;
     border: 1px solid transparent;
     padding: 0.6em 1.2em;
@@ -57,27 +134,21 @@
     cursor: pointer;
     transition: border-color 0.25s;
   }
-  button:hover {
-    border-color: #646cff;
+
+  button:not([role="switch"]):hover {
+    border-color: #2f8f5b;
   }
-  button:focus,
-  button:focus-visible {
+
+  button:not([role="switch"]):focus,
+  button:not([role="switch"]):focus-visible {
     outline: 4px auto -webkit-focus-ring-color;
   }
 
+  /* Se você quiser manter modo claro automático */
   @media (prefers-color-scheme: light) {
-    :root {
-      color: #213547;
-    }
     body {
       background-color: #ffffff;
       color: #213547;
-    }
-    a:hover {
-      color: #747bff;
-    }
-    button {
-      background-color: #f9f9f9;
     }
   }
 }

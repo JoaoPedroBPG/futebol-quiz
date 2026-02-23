@@ -1,15 +1,16 @@
 .careerRow {
   width: 100%;
   display: flex;
-  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .careerNode {
   display: flex;
   align-items: center;
   gap: 12px;
+  
 }
 
 .crestBlock {
