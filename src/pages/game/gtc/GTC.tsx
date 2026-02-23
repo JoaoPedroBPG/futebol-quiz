@@ -1,18 +1,18 @@
-import { CHALLENGES } from "../../data/players";
 import { CareerRow } from "./CareerRow";
 import { useMemo, useState } from "react";
-import "./Game.css";
+import "./Gtc.css";
 import { PlayerImage } from "./PlayerImage";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { X } from 'lucide-react';
 import { Check } from "lucide-react"; 
+import { CHALLENGES } from "@/data/players";
 
 
 
 
 
-export function Game() {
+export function GTC() {
   const challenge = CHALLENGES[0];
 
 
