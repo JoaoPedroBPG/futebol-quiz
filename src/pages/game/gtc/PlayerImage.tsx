@@ -3,8 +3,8 @@ import "./PlayerImage.css";
 type PlayerImageProps = {
   src: string;
   alt: string;
-  blurPx?: number; // default 0
-  width?: string;  // ex: "50%" ou "100%"
+  blurPx?: number; 
+  width?: string;  
 };
 
 export function PlayerImage({ src, alt, blurPx = 0, width = "100%" }: PlayerImageProps) {

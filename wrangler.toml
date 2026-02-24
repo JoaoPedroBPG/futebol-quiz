@@ -1,0 +1,7 @@
+name = "daily-soccer"
+compatibility_date = "2025-01-01"
+
+[vars]
+# Para DEV local você pode colocar algo aqui,
+# mas em produção prefira Secret no dashboard.
+GAME_SECRET = "dev-secret-change-me"

@@ -1,0 +1,36 @@
+[
+  {
+    "id": "modric",
+    "name": "Luka Modrić",
+    "photo": "https://img.a.transfermarkt.technology/portrait/big/27992-1687776160.jpg?lm=1",
+    "clubs": [
+      { "name": "Real Madrid", "crest": "https://assets.football-logos.cc/logos/spain/700x700/real-madrid.81d3d699.png" },
+      { "name": "Tottenham", "crest": "https://assets.football-logos.cc/logos/england/700x700/tottenham.dded87dc.png" },
+      { "name": "Dinamo Zagreb", "crest": "https://assets.football-logos.cc/logos/croatia/700x700/dinamo-zagreb.75127779.png" },
+      {
+        "name": "Zrinjski Mostar",
+        "crest": "https://assets.football-logos.cc/logos/bosnia-and-herzegovina/700x700/zrinjski.72e71246.png"
+      }
+    ]
+  },
+  {
+    "id": "neymar",
+    "name": "Neymar",
+    "photo": "https://img.a.transfermarkt.technology/portrait/big/68290-1692601435.jpg?lm=1",
+    "clubs": [
+      { "name": "Al Hilal", "crest": "https://upload.wikimedia.org/wikipedia/commons/5/55/Al_Hilal_SFC_Logo.svg" },
+      { "name": "PSG", "crest": "https://www.ogol.com.br/img/logos/equipas/127_imgbank_1684500204.png" },
+      { "name": "Barcelona", "crest": "https://cdn-img.zerozero.pt/img/logos/equipas/40_imgbank_1683107862.png" }
+    ]
+  },
+  {
+    "id": "messi",
+    "name": "Lionel Messi",
+    "photo": "https://www.ogol.com.br/img/jogadores/new/05/92/10592_lionel_messi_20250615120609.png",
+    "clubs": [
+      { "name": "Inter Miami", "crest": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/20232.png" },
+      { "name": "PSG", "crest": "https://www.ogol.com.br/img/logos/equipas/127_imgbank_1684500204.png" },
+      { "name": "Barcelona", "crest": "https://cdn-img.zerozero.pt/img/logos/equipas/40_imgbank_1683107862.png" }
+    ]
+  }
+]
