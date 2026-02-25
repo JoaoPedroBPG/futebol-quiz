@@ -89,12 +89,12 @@ export function GTC() {
 
   const effectiveBlur = guessed
     ? 0
-    : !finalChancesLeft 
-      ? 0 : inFinalPhase
-        ? 8.5 
-        : !decreaseBlurEnabled
-          ? initialBlur
-            : blurPx > 8.5 ? blurPx : 8.5;
+    : !decreaseBlurEnabled
+      ? initialBlur :
+        !finalChancesLeft 
+          ? 0 : inFinalPhase
+            ? 6 
+            :  blurPx > 6 ? blurPx : 6;
 
   return (
     <main className="game">
