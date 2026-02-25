@@ -6,6 +6,7 @@ export type Player = {
   name: string;
   photo: string;
   clubs: Club[]; // do atual -> antigo
+  
 };
 
 export const players = playersRaw as Player[];
