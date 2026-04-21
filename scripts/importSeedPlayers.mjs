@@ -1,211 +1,202 @@
-//This script was made entirely by AI
-
 import fs from "node:fs/promises";
 
-const API_KEY = process.env.THESPORTSDB_KEY || "123"; // use sua key; 123 é a free key
-const BASE = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
+const SEED_PATH = "data/seedPlayers.json";
+const OUT_PATH = "data/players.json";
+const UNRESOLVED_PATH = "data/unresolvedPlayers.json";
 
-// Free tier: 30 req/min => ~2.1s por request é seguro. :contentReference[oaicite:5]{index=5}
-const REQUEST_DELAY_MS = 2100;
+const PTWIKI = "https://pt.wikipedia.org/w/api.php";
+const ENWIKI = "https://en.wikipedia.org/w/api.php";
 
+// delays leves pra não estressar API
+const DELAY_MS = 300;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function fetchJson(url) {
-  const res = await fetch(url);
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status} em ${url}\n${text}`);
-  }
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "GuessTheCareerBot/1.0 (local script)",
+      "Accept": "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
   return res.json();
 }
 
-function slugifyId(name, fallback) {
-  const base = (name || fallback || "")
+function slugifyId(name) {
+  return (name || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return base || `player-${fallback}`;
 }
 
-function parseDate(s) {
-  // s geralmente vem como "1991-02-05" etc.
-  if (!s) return null;
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
+// pega wikitext bruto do artigo
+async function getWikitext(langApi, title) {
+  const url =
+    `${langApi}?action=parse&format=json&prop=wikitext&page=${encodeURIComponent(title)}` +
+    `&redirects=1&formatversion=2`;
+  const json = await fetchJson(url);
+  const wikitext = json?.parse?.wikitext;
+  return typeof wikitext === "string" ? wikitext : null;
 }
 
-function calcAge(dateBorn) {
-  const d = parseDate(dateBorn);
-  if (!d) return null;
-  const now = new Date();
-  let age = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
-  return age;
+// extrai bloco do infobox (bem simples: {{Infobox ... }} até fechar)
+function extractInfobox(wikitext) {
+  if (!wikitext) return null;
+  const start = wikitext.search(/\{\{\s*Infobox/i);
+  if (start === -1) return null;
+
+  // parsing por contagem de chaves
+  let depth = 0;
+  for (let i = start; i < wikitext.length - 1; i++) {
+    const two = wikitext.slice(i, i + 2);
+    if (two === "{{") depth++;
+    if (two === "}}") depth--;
+    if (depth === 0) {
+      return wikitext.slice(start, i + 2);
+    }
+  }
+  return null;
 }
 
-function pickBestPhoto(p) {
-  // Campos comuns: strCutout, strThumb, strRender, strFanart1...
-  return p?.strCutout || p?.strThumb || p?.strRender || p?.strFanart1 || "";
+function cleanValue(v) {
+  if (!v) return "";
+  return v
+    .replace(/<ref[^>]*>[\s\S]*?<\/ref>/gi, "") // remove refs
+    .replace(/<ref[^\/]*\/>/gi, "")
+    .replace(/\{\{[\s\S]*?\}\}/g, "") // remove templates simples
+    .replace(/\[\[([^\|\]]+)\|([^\]]+)\]\]/g, "$2") // [[A|B]] -> B
+    .replace(/\[\[([^\]]+)\]\]/g, "$1") // [[A]] -> A
+    .replace(/'''+/g, "") // bold/italic
+    .replace(/&nbsp;/g, " ")
+    .trim();
 }
 
-async function searchPlayersByName(name) {
-  // searchplayers.php?p=... :contentReference[oaicite:6]{index=6}
-  const url = `${BASE}/searchplayers.php?p=${encodeURIComponent(name)}`;
-  return fetchJson(url);
-}
+// lê campos |clubs1=, |clubs2=... e |years1=...
+function parseInfoboxCareer(infobox) {
+  if (!infobox) return null;
 
-async function lookupPlayer(idPlayer) {
-  // lookupplayer.php?id=... :contentReference[oaicite:7]{index=7}
-  const url = `${BASE}/lookupplayer.php?id=${encodeURIComponent(idPlayer)}`;
-  return fetchJson(url);
-}
+  const clubs = new Map(); // index -> name
+  const years = new Map(); // index -> "2009–2012"
 
-async function lookupFormerTeams(idPlayer) {
-  // lookupformerteams.php?id=... :contentReference[oaicite:8]{index=8}
-  const url = `${BASE}/lookupformerteams.php?id=${encodeURIComponent(idPlayer)}`;
-  return fetchJson(url);
-}
+  // captura linhas | key = value
+  const lines = infobox.split("\n");
+  for (const line of lines) {
+    const m = line.match(/^\s*\|\s*([a-zA-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (!m) continue;
+    const key = m[1];
+    const val = cleanValue(m[2]);
 
-function normalizeFormerTeams(json) {
-  const arr = json?.formerteams ?? [];
-  return arr
-    .map((t) => ({
-      name: t.strFormerTeam || t.strTeam || "",
-      crest: t.strTeamBadge || "",
-      joined: t.strJoined || null,
-      departed: t.strDeparted || null,
-    }))
-    .filter((c) => c.name);
-}
+    // ignora juventude/base explicitamente
+    if (/^youthclubs\d+$/i.test(key) || /^youthyears\d+$/i.test(key)) continue;
 
-function bestCandidate(candidates, seed) {
-  // Heurística simples:
-  // 1) strSport === "Soccer"
-  // 2) se preferredNationality bater, prioriza
-  // 3) match exato no nome (case-insensitive) prioriza
-  // 4) senão, pega o primeiro “mais plausível”
-  const name = (seed.name || "").toLowerCase().trim();
-  const prefNat = (seed.preferredNationality || "").toLowerCase().trim();
+    const c = key.match(/^clubs(\d+)$/i);
+    if (c) clubs.set(Number(c[1]), val);
 
-  const soccer = (candidates || []).filter((c) => (c.strSport || "").toLowerCase() === "soccer");
-  if (soccer.length === 0) return null;
-
-  const exactName = soccer.filter((c) => (c.strPlayer || "").toLowerCase().trim() === name);
-  const pool1 = exactName.length ? exactName : soccer;
-
-  if (prefNat) {
-    const natMatch = pool1.filter(
-      (c) => (c.strNationality || "").toLowerCase().trim() === prefNat
-    );
-    if (natMatch.length) return natMatch[0];
+    const y = key.match(/^years(\d+)$/i);
+    if (y) years.set(Number(y[1]), val);
   }
 
-  return pool1[0];
+  if (clubs.size === 0) return [];
+
+  // monta lista (profissional)
+  const items = [];
+  const indices = Array.from(clubs.keys()).sort((a, b) => a - b);
+  for (const idx of indices) {
+    const name = clubs.get(idx);
+    if (!name) continue;
+    const period = years.get(idx) || null;
+    items.push({ name, period });
+  }
+
+  return items;
+}
+
+// converte "2009–2012" em joined/departed ISO aproximado
+function periodToDates(period) {
+  if (!period) return { joined: null, departed: null };
+
+  const p = period.replace(/\s/g, "");
+  // formatos comuns: "2009–2012", "2009-2012", "2012", "2012–"
+  const m = p.match(/^(\d{4})(?:[–-](\d{4})?)?$/);
+  if (!m) return { joined: null, departed: null };
+
+  const y1 = m[1];
+  const y2 = m[2];
+
+  const joined = `${y1}-01-01T00:00:00Z`;
+  const departed = y2 ? `${y2}-01-01T00:00:00Z` : null;
+  return { joined, departed };
 }
 
 async function main() {
-  const seedPath = "data/seedPlayers.json";
-  const seedRaw = JSON.parse(await fs.readFile(seedPath, "utf-8"));
-
+  const seed = JSON.parse(await fs.readFile(SEED_PATH, "utf-8"));
   const resolved = [];
   const unresolved = [];
 
-  // cache local pra evitar refazer lookup dentro da mesma execução
-  const playerCache = new Map(); // idPlayer -> playerDetails
-
-  for (const item of seedRaw) {
-    try {
-      let idPlayer = item.idPlayer || null;
-      let chosen = null;
-
-      if (!idPlayer) {
-        await sleep(REQUEST_DELAY_MS);
-        const search = await searchPlayersByName(item.name);
-        const candidates = search?.player ?? [];
-
-        chosen = bestCandidate(candidates, item);
-        if (!chosen?.idPlayer) {
-          unresolved.push({ seed: item, reason: "Nenhum candidato encontrado (ou não Soccer)." });
-          continue;
-        }
-        idPlayer = chosen.idPlayer;
-      }
-
-      // lookup player (detalhes) :contentReference[oaicite:9]{index=9}
-      let player = playerCache.get(idPlayer);
-      if (!player) {
-        await sleep(REQUEST_DELAY_MS);
-        const lookup = await lookupPlayer(idPlayer);
-        player = (lookup?.players ?? lookup?.player ?? [])[0] || null;
-        if (!player) {
-          unresolved.push({ seed: item, idPlayer, reason: "lookupplayer vazio" });
-          continue;
-        }
-        playerCache.set(idPlayer, player);
-      }
-
-      // former teams (carreira) :contentReference[oaicite:10]{index=10}
-      await sleep(REQUEST_DELAY_MS);
-      const formerJson = await lookupFormerTeams(idPlayer);
-      const clubs = normalizeFormerTeams(formerJson);
-
-      // Você pode optar por incluir o time atual no topo:
-      // (às vezes o endpoint de former teams não inclui o time atual)
-      const currentTeam = player.strTeam || null;
-      const currentTeamBadge = player.strTeamBadge || null; // pode não existir em todos os payloads
-      if (currentTeam) {
-        clubs.unshift({ name: currentTeam, crest: currentTeamBadge || "", joined: null, departed: null });
-      }
-
-      const out = {
-        id: slugifyId(player.strPlayer || item.name, idPlayer),
-        name: player.strPlayer || item.name,
-        photo: pickBestPhoto(player),
-
-        // “Cruciais” pra filtros e modos futuros
-        sportdbPlayerId: idPlayer,
-        nationality: player.strNationality || null,
-        position: player.strPosition || null,
-        birthDate: player.dateBorn || null,
-        age: calcAge(player.dateBorn),
-
-        // extras úteis
-        height: player.strHeight || null,
-        weight: player.strWeight || null,
-        currentTeam: player.strTeam || null,
-        currentTeamId: player.idTeam || null,
-
-        // carreira pro seu modo atual
-        clubs,
-
-        // placeholders pra você popular depois (se decidir outra fonte/estratégia)
-        stats: {
-          matches: null,
-          goals: null,
-          assists: null,
-        },
-      };
-
-      resolved.push(out);
-      console.log(`+ ${out.name} (${out.nationality || "?"}) - clubes: ${out.clubs.length}`);
-    } catch (e) {
-      unresolved.push({ seed: item, reason: e?.message || String(e) });
+  for (const s of seed) {
+    const seedName = s.name?.trim();
+    const pageTitle = (s.wikipedia || s.name || "").trim();
+    if (!seedName || !pageTitle) {
+      unresolved.push({ seed: s, reason: "seed missing name/wikipedia" });
+      continue;
     }
+
+    // tenta ptwiki, depois enwiki
+    await sleep(DELAY_MS);
+    let wikitext = await getWikitext(PTWIKI, pageTitle);
+    let usedWiki = "pt";
+    if (!wikitext) {
+      await sleep(DELAY_MS);
+      wikitext = await getWikitext(ENWIKI, pageTitle);
+      usedWiki = "en";
+    }
+
+    if (!wikitext) {
+      unresolved.push({ seed: s, reason: "could not fetch wikitext (pt/en)" });
+      continue;
+    }
+
+    const infobox = extractInfobox(wikitext);
+    const career = parseInfoboxCareer(infobox);
+
+    if (!career || career.length === 0) {
+      unresolved.push({ seed: s, reason: "could not parse clubs/years from infobox", wiki: usedWiki });
+      continue;
+    }
+
+    // monta clubs já com datas e ordem “mais recente primeiro”
+    const clubs = career
+      .map((c) => {
+        const { joined, departed } = periodToDates(c.period);
+        return { name: c.name, crest: "", joined, departed };
+      })
+      .reverse(); // infobox costuma ser do mais antigo -> mais recente
+
+    resolved.push({
+      id: slugifyId(seedName),
+      name: seedName,              // ✅ nome popular do seed
+      source: { wikipedia: pageTitle, lang: usedWiki },
+      photo: null,                 // você pode preencher depois (Wikidata ou Wikipedia pageimages)
+      nationality: null,
+      position: null,
+      birthDate: null,
+      age: null,
+      height: null,
+      stats: { matches: null, goals: null, assists: null },
+      clubs,
+    });
+
+    console.log(`+ ${seedName} clubs=${clubs.length} (${usedWiki}wiki)`);
   }
 
-  // filtros opcionais (recomendado pro seu jogo):
-  // manter só quem tem pelo menos 3 clubes (incluindo atual)
-  const filtered = resolved.filter((p) => (p.clubs?.length || 0) >= 3);
-
   await fs.mkdir("data", { recursive: true });
-  await fs.writeFile("data/players.json", JSON.stringify(filtered, null, 2), "utf-8");
-  await fs.writeFile("data/unresolvedPlayers.json", JSON.stringify(unresolved, null, 2), "utf-8");
+  await fs.writeFile(OUT_PATH, JSON.stringify(resolved, null, 2), "utf-8");
+  await fs.writeFile(UNRESOLVED_PATH, JSON.stringify(unresolved, null, 2), "utf-8");
 
-  console.log(`\n✅ data/players.json: ${filtered.length} jogadores`);
-  console.log(`⚠️ data/unresolvedPlayers.json: ${unresolved.length} entradas para revisar`);
+  console.log(`\n✅ Wrote ${OUT_PATH} (${resolved.length})`);
+  console.log(`⚠️ Wrote ${UNRESOLVED_PATH} (${unresolved.length})`);
 }
 
 main().catch((e) => {
